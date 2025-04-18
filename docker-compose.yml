@@ -1,0 +1,61 @@
+networks:
+  monitoring:
+    external: true
+
+volumes:
+  prometheus_data:
+      
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+    networks:
+      - monitoring
+    command:
+      # config file
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+      # The --storage.tsdb.path=/prometheus flag in Prometheus specifies the directory
+      # where Prometheus should store its time-series database (TSDB) data.
+      - '--storage.tsdb.path=/prometheus'
+      # flag in Prometheus specifies the directory where Prometheus should look for its console library files.
+      # Console libraries are used to render custom web-based dashboards within the Prometheus web UI
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+
+      # Prometheus to retain data 30 days, 14d, 200h, 12w, 2y etc
+      - "--storage.tsdb.retention.time=30d"
+
+      # Doc: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+      # Prometheus can reload its configuration at runtime,
+      # sending a HTTP POST request to the /-/reload endpoint
+      - "--web.enable-lifecycle"
+
+      # call the admin API from HTTP
+      - "--web.enable-admin-api"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana:/var/lib/grafana
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    networks:
+      - monitoring
